@@ -3,7 +3,7 @@ import numpy as np
 from imutils.video import VideoStream
 import hsv_val
 
-sliderEnabled = 0
+sliderEnabled = 1
 
 
 class openCvPipeline:
@@ -54,8 +54,8 @@ class openCvPipeline:
             cv2.createTrackbar(self.br, self.wnd, 0, 100, self.nothing)
 
         # * Testing with different values to denoise
-        cv2.createTrackbar(self.kernelSize, self.wnd, 0, 10, self.nothing)
-        cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
+        # cv2.createTrackbar(self.kernelSize, self.wnd, 0, 10, self.nothing)
+        # cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
 
     def run(self, video):
         self.capture = video
@@ -88,12 +88,16 @@ class openCvPipeline:
                 blur = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
                     self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
 
+                #* Returns the masked image
                 self.mask = self.getMask(
                     self.frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh)
 
+                #* Returns the contour of the masked image
                 self.contours = self.getContours(self.mask)
 
+                #* draws circle on the contour
                 self.findPart(self.contours)
+
 
                 cv2.imshow('mask', self.mask)
                 cv2.imshow(self.wnd, self.frame)
@@ -139,15 +143,16 @@ class openCvPipeline:
         locates object and its centroid
         findPart(self, contours) -> None
         '''
-        for contour in contours:
-            '''
-            # quick and janky of finding centroid
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-            center = (int(x), int(y))
-            radius = int(radius)
-            cv2.circle(self.frame, center, radius, (0, 255, 0), 2)
-            '''
 
+        '''
+        # quick and janky but your milege may vary
+        (x, y), radius = cv2.minEnclosingCircle(contour)
+        center = (int(x), int(y))
+        radius = int(radius)
+        cv2.circle(self.frame, center, radius, (0, 255, 0), 2)
+        '''
+        if len(contours) != 0:
+            contour = max(contours, key=cv2.contourArea)
             # ? contourArea(contour[, oriented]) -> retval
             # * The function computes a contour area. Similarly to moments , the area is computed using the Green. formula. Thus, the returned area and the number of non-zero pixels, if you draw the contour using. \  # drawContours or \#fillPoly , can be different. Also, the function will most certainly give a wrong. results for contours with self-intersections
             self.A = cv2.contourArea(contour)
@@ -167,30 +172,34 @@ class openCvPipeline:
                 # * uses the contour's 'moment' to find centroid
                 if self.M['m00'] != 0:
                     # * calculate x,y coordinate of center
-                    circleX = int(self.M['m10']/self.M['m00'])
-                    circleY = int(self.M['m01']/self.M['m00'])
+                    self.circleX = int(self.M['m10']/self.M['m00'])
+                    self.circleY = int(self.M['m01']/self.M['m00'])
+                    self.center = (self.circleX, self.circleY)
                 else:
-                    circleX, circleY = 0, 0
+                    self.center = (0, 0)
+
                 # ? circle(img, center, radius, color[, thickness[, lineType[, shift]]]) -> img
                 # * The function cv::circle draws a simple or filled circle with a given center and radius
+
                 # * Centroid center circle
-                # print('Blob center', cX,cY)
-                cv2.circle(self.frame, (circleX, circleY),
-                           10, (159, 159, 255), -1)
+                cv2.circle(self.frame, self.center,
+                            10, (159, 159, 255), -1)
                 # * Centroid surrounding circle
-                cv2.circle(self.frame, (circleX, circleY),
-                           self.Radius, (255, 0, 0), 5)
+                cv2.circle(self.frame, self.center,
+                            self.Radius, (255, 0, 0), 5)
+
+                print("Object is at ", *self.center)
+
 
     def getContours(self, mask):
         '''
         analyzes video feed and finds contours
         getContours(self, frame) -> contours
         '''
-        self.mask = mask
         # ? cvtColor(src, code[, dst[, dstCn]]) -> dst
         # * use greyscale (single channel) to remove blobs and draw contours
         # * The function converts an input image from one color space to another
-        self.grey = cv2.cvtColor(self.mask, cv2.COLOR_BGR2GRAY)
+        self.grey = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         # blob removal
 
         # * Return a new array of given shape and type, filled with ones.
@@ -240,17 +249,17 @@ class openCvPipeline:
         self.HSV_HIGH = np.array([hueHigh, saturationHigh, valueHigh])
 
         # * create a mask with the hsv range
-        self.mask = cv2.inRange(hsv, self.HSV_LOW, self.HSV_HIGH)
+        mask = cv2.inRange(hsv, self.HSV_LOW, self.HSV_HIGH)
         # * cancel out everyting that doesn't belong to the mask
         # * computes bitwise conjunction of the two arrays (dst = src1 & src2)
-        self.mask = cv2.bitwise_and(frame, frame, mask=self.mask)
-        return self.mask
+        mask = cv2.bitwise_and(frame, frame, mask=mask)
+        return mask
 
 
 cv = openCvPipeline()
 
 #* captures the videofeed from camera
-camera = cv2.VideoCapture(1)
+camera = cv2.VideoCapture(1) #* Try (0) for Windows
 cv.run(camera)
 
 #* release everything at the end of the operation

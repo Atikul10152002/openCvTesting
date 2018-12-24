@@ -1,5 +1,6 @@
 import cv2
 
+#* captures the videofeed from camera
 video = cv2.VideoCapture(1)
 eye = cv2.CascadeClassifier("eye_cas.xml")
 face = cv2.CascadeClassifier("face_cas.xml")
