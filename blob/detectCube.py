@@ -71,26 +71,13 @@ class openCvPipeline:
                                         (int(self.frame.shape[1]/2),
                                          int(self.frame.shape[0]/2)))
 
-                # * read trackbar positions for each trackbar. The function returns the current position of the specified trackbar
-                # ? getTrackbarPos(trackbarname, winname) -> retval
-                hueLow = cv2.getTrackbarPos(
-                    self.hl, self.wnd) if sliderEnabled else hsv_val.hueLow
-                hueHigh = cv2.getTrackbarPos(
-                    self.hh, self.wnd) if sliderEnabled else hsv_val.hueHigh
-                saturationLow = cv2.getTrackbarPos(
-                    self.sl, self.wnd) if sliderEnabled else hsv_val.saturationLow
-                saturationHigh = cv2.getTrackbarPos(
-                    self.sh, self.wnd) if sliderEnabled else hsv_val.saturationHigh
-                valueLow = cv2.getTrackbarPos(
-                    self.vl, self.wnd) if sliderEnabled else hsv_val.valueLow
-                valueHigh = cv2.getTrackbarPos(
-                    self.vh, self.wnd) if sliderEnabled else hsv_val.valueHigh
-                blur = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
-                    self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
+
+                # * returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
+                self.sliderValues = self.getSliderValues()
 
                 #* Returns the masked image
                 self.mask = self.getMask(
-                    self.frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh)
+                    self.frame, *self.sliderValues)
 
                 #* Returns the contour of the masked image
                 self.contours = self.getContours(self.mask)
@@ -104,8 +91,7 @@ class openCvPipeline:
 
                 key = cv2.waitKey(1000//self.framesPerSecond)
                 if key == ord('s') and sliderEnabled:
-                    self.writeHSV(hueLow, hueHigh, saturationLow,
-                                  saturationHigh, valueLow, valueHigh, blur)
+                    self.writeHSV(*self.sliderValues)
                 if key == ord('q'):
                     self.capture.release()
                     break
@@ -137,6 +123,30 @@ class openCvPipeline:
             file.write('valueHigh = ' + str(valueHigh) + '\n')
             file.write('blur = ' + str(blur) + '\n')
             file.close()
+
+    def getSliderValues(self):
+        '''
+        returns the slider values
+        '''
+        # * read trackbar positions for each trackbar. The function returns the current position of the specified trackbar
+        # ? getTrackbarPos(trackbarname, winname) -> retval
+        hueLow = cv2.getTrackbarPos(
+            self.hl, self.wnd) if sliderEnabled else hsv_val.hueLow
+        hueHigh = cv2.getTrackbarPos(
+            self.hh, self.wnd) if sliderEnabled else hsv_val.hueHigh
+        saturationLow = cv2.getTrackbarPos(
+            self.sl, self.wnd) if sliderEnabled else hsv_val.saturationLow
+        saturationHigh = cv2.getTrackbarPos(
+            self.sh, self.wnd) if sliderEnabled else hsv_val.saturationHigh
+        valueLow = cv2.getTrackbarPos(
+            self.vl, self.wnd) if sliderEnabled else hsv_val.valueLow
+        valueHigh = cv2.getTrackbarPos(
+            self.vh, self.wnd) if sliderEnabled else hsv_val.valueHigh
+        blur = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
+            self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(
+            self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
+
+        return hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
 
     def findPart(self, contours):
         '''
@@ -226,19 +236,14 @@ class openCvPipeline:
             self.morphed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2]
         return self.contours
 
-    def getMask(self, frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh):
+    def getMask(self, frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur):
         '''
         applies mask using hsv trackbar values
         getImage(self, frame) -> res
         '''
 
-        # * gets the slider poisiton for blur if slider is enabled
-        sliderbar = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
-            self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(
-            self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
-
         # ? GaussianBlur(src, ksize, sigmaX[, dst[, sigmaY[, borderType]]]) -> dst
-        frame = cv2.GaussianBlur(frame, (sliderbar, sliderbar), 0)
+        frame = cv2.GaussianBlur(frame, (blur, blur), 0)
 
         # ? cvtColor(src, code[, dst[, dstCn]]) -> dst
         # * The function converts an input image from one color space to another
