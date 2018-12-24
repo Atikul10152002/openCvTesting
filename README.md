@@ -1,11 +1,9 @@
 # openCvTesting
 
+Team 6517 vision processing WorkShop
 
 # South-Doyle Robotics [Team FTW #6517]
 > https://www.soknorobo.com
-
-
-Team 6517 vision processing WorkShop
 
 * Find us at the <a href="https://www.thebluealliance.com/team/6517" target="_blank"> Blue Alliance Webpage</a>
 
