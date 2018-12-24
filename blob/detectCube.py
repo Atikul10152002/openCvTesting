@@ -3,8 +3,7 @@ import numpy as np
 from imutils.video import VideoStream
 import hsv_val
 
-sliderEnabled = True
-# record = 1
+sliderEnabled = 0
 
 
 class openCvPipeline:
@@ -30,8 +29,8 @@ class openCvPipeline:
     vl = 'Value Low'
     br = 'Blur'
     wnd = 'Colorbars'
-    # kernelSize = 'kernel_size'
-    # kernelDivision = 'kernel_division'
+    kernelSize = 'kernel_size'
+    kernelDivision = 'kernel_division'
 
     def __init__(self):
         # * windows for sliders
@@ -55,8 +54,8 @@ class openCvPipeline:
             cv2.createTrackbar(self.br, self.wnd, 0, 100, self.nothing)
 
         # * Testing with different values to denoise
-        # cv2.createTrackbar(self.kernelSize, self.wnd, 0, 10, self.nothing)
-        # cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
+        cv2.createTrackbar(self.kernelSize, self.wnd, 0, 10, self.nothing)
+        cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
 
     def run(self, video):
         self.capture = video
@@ -86,11 +85,12 @@ class openCvPipeline:
                     self.vl, self.wnd) if sliderEnabled else hsv_val.valueLow
                 valueHigh = cv2.getTrackbarPos(
                     self.vh, self.wnd) if sliderEnabled else hsv_val.valueHigh
-                blur = cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
-                    self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(self.br, self.wnd) + 1
+                blur = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
+                    self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
 
                 self.mask = self.getMask(
                     self.frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh)
+
                 self.contours = self.getContours(self.mask)
 
                 self.findPart(self.contours)
@@ -132,12 +132,22 @@ class openCvPipeline:
             file.write('valueLow = ' + str(valueLow) + '\n')
             file.write('valueHigh = ' + str(valueHigh) + '\n')
             file.write('blur = ' + str(blur) + '\n')
-
             file.close()
 
     def findPart(self, contours):
-        # locates object and its centroid
+        '''
+        locates object and its centroid
+        findPart(self, contours) -> None
+        '''
         for contour in contours:
+            '''
+            # quick and janky of finding centroid
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+            center = (int(x), int(y))
+            radius = int(radius)
+            cv2.circle(self.frame, center, radius, (0, 255, 0), 2)
+            '''
+
             # ? contourArea(contour[, oriented]) -> retval
             # * The function computes a contour area. Similarly to moments , the area is computed using the Green. formula. Thus, the returned area and the number of non-zero pixels, if you draw the contour using. \  # drawContours or \#fillPoly , can be different. Also, the function will most certainly give a wrong. results for contours with self-intersections
             self.A = cv2.contourArea(contour)
@@ -183,18 +193,28 @@ class openCvPipeline:
         self.grey = cv2.cvtColor(self.mask, cv2.COLOR_BGR2GRAY)
         # blob removal
 
-        self.kernel = np.ones((0, 0), np.uint8)/25
-        # kernel = np.ones((cv2.getTrackbarPos(kernelSize, wnd) ,cv2.getTrackbarPos(kernelSize, wnd) ),np.uint8)/cv2.getTrackbarPos(kernelDivision, wnd)
+        # * Return a new array of given shape and type, filled with ones.
+        self.morphkernel = np.ones((5, 5), np.uint8)
 
-        #grey = cv2.erode(grey, kernel, iterations=1)
-        self.grey = cv2.dilate(self.grey, self.kernel, iterations=1)
-        self.grey = cv2.morphologyEx(self.grey, cv2.MORPH_OPEN, self.kernel)
-        # grey = cv2.morphologyEx(grey, cv2.MORPH_CLOSE, kernel)
+        # self.dilatekernel = np.ones((5, 5), np.uint8)
+        # self.kernel = np.ones((
+        #     cv2.getTrackbarPos(self.kernelSize, self.wnd),
+        #     cv2.getTrackbarPos(self.kernelSize, self.wnd)),
+        #     np.uint8)/cv2.getTrackbarPos(self.kernelDivision, self.wnd)
+
+        # self.eroded = cv2.erode(self.grey, self.kernel, iterations=1)
+        # self.dialated = cv2.dilate(self.grey, self.kernel, iterations=1)
+
+        # ? morphologyEx(src, op, kernel[, dst[, anchor[, iterations[, borderType[, borderValue]]]]]) -> dst
+        self.morphed = cv2.morphologyEx(
+            self.grey, cv2.MORPH_OPEN, self.morphkernel)
+        self.morphed = cv2.morphologyEx(
+            self.morphed, cv2.MORPH_CLOSE, self.morphkernel)
 
         # ? findContours(image, mode, method[, contours[, hierarchy[, offset]]]) -> image, contours, hierarchy
         # * The function retrieves contours from the binary image using the algorithm passed as an argument
         self.contours = cv2.findContours(
-            self.grey, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2]
+            self.morphed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2]
         return self.contours
 
     def getMask(self, frame, hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh):
@@ -202,31 +222,37 @@ class openCvPipeline:
         applies mask using hsv trackbar values
         getImage(self, frame) -> res
         '''
-        # ? GaussianBlur(src, ksize, sigmaX[, dst[, sigmaY[, borderType]]]) -> dst
-        # if sliderEnabled:
+
+        # * gets the slider poisiton for blur if slider is enabled
         sliderbar = (cv2.getTrackbarPos(self.br, self.wnd) if cv2.getTrackbarPos(
             self.br, self.wnd) % 2 != 0 else cv2.getTrackbarPos(
             self.br, self.wnd) + 1) if sliderEnabled else hsv_val.blur
+
+        # ? GaussianBlur(src, ksize, sigmaX[, dst[, sigmaY[, borderType]]]) -> dst
         frame = cv2.GaussianBlur(frame, (sliderbar, sliderbar), 0)
-        # else:
-            # frame = cv2.GaussianBlur(frame, (hsv_val.blur, hsv_val.blur), 0)
+
         # ? cvtColor(src, code[, dst[, dstCn]]) -> dst
         # * The function converts an input image from one color space to another
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        # define range of mask
+        # * define range of mask
         self.HSV_LOW = np.array([hueLow, saturationLow, valueLow])
         self.HSV_HIGH = np.array([hueHigh, saturationHigh, valueHigh])
-        # create a mask for that range
+
+        # * create a mask with the hsv range
         self.mask = cv2.inRange(hsv, self.HSV_LOW, self.HSV_HIGH)
+        # * cancel out everyting that doesn't belong to the mask
+        # * computes bitwise conjunction of the two arrays (dst = src1 & src2)
         self.mask = cv2.bitwise_and(frame, frame, mask=self.mask)
         return self.mask
 
 
 cv = openCvPipeline()
+
+#* captures the videofeed from camera
 camera = cv2.VideoCapture(1)
 cv.run(camera)
 
+#* release everything at the end of the operation
 camera.release()
 cv2.destroyAllWindows()
-# self.out.release()
