@@ -1,9 +1,9 @@
 import cv2
+import time
 import numpy as np
-from imutils.video import VideoStream
 import hsv_val
 
-sliderEnabled = 1
+sliderEnabled = True
 
 
 class openCvPipeline:
@@ -54,7 +54,7 @@ class openCvPipeline:
             cv2.createTrackbar(self.br, self.wnd, 0, 100, self.nothing)
 
         # * Testing with different values to denoise
-        # cv2.createTrackbar(self.kernelSize, self.wnd, 0, 10, self.nothing)
+        # cv2.createTrackbar(self.kernelSize, self.wnd, 1, 10, self.nothing)
         # cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
 
     def run(self, video):
@@ -198,7 +198,7 @@ class openCvPipeline:
                 cv2.circle(self.frame, self.center,
                             self.Radius, (255, 0, 0), 5)
 
-                print("Object is at ", *self.center)
+                # print("Object is at ", *self.center)
 
 
     def getContours(self, mask):
@@ -212,8 +212,8 @@ class openCvPipeline:
         self.grey = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         # blob removal
 
-        # * Return a new array of given shape and type, filled with ones.
-        self.morphkernel = np.ones((5, 5), np.uint8)
+        #* biggern kernel sizel will lead to more areas being ignored
+        self.morphkernel = np.ones((1, 1), np.uint8)
 
         # self.dilatekernel = np.ones((5, 5), np.uint8)
         # self.kernel = np.ones((
@@ -225,10 +225,12 @@ class openCvPipeline:
         # self.dialated = cv2.dilate(self.grey, self.kernel, iterations=1)
 
         # ? morphologyEx(src, op, kernel[, dst[, anchor[, iterations[, borderType[, borderValue]]]]]) -> dst
+
+
         self.morphed = cv2.morphologyEx(
-            self.grey, cv2.MORPH_OPEN, self.morphkernel)
+            self.grey, cv2.MORPH_CLOSE, self.morphkernel)
         self.morphed = cv2.morphologyEx(
-            self.morphed, cv2.MORPH_CLOSE, self.morphkernel)
+            self.morphed, cv2.MORPH_OPEN, self.morphkernel)
 
         # ? findContours(image, mode, method[, contours[, hierarchy[, offset]]]) -> image, contours, hierarchy
         # * The function retrieves contours from the binary image using the algorithm passed as an argument
@@ -265,6 +267,8 @@ cv = openCvPipeline()
 
 #* captures the videofeed from camera
 camera = cv2.VideoCapture(1) #* Try (0) for Windows
+time.sleep(2)
+
 cv.run(camera)
 
 #* release everything at the end of the operation
