@@ -1,10 +1,17 @@
 import cv2
+import time
 
 def cascade(video):
     #* openCV provided haar cascades
-    eye = cv2.CascadeClassifier("eye_cas.xml")
-    face = cv2.CascadeClassifier("face_cas.xml")
-    # smile = cv2.CascadeClassifier("smile_cas.xml")
+    #* More cascades are loacted at:
+    #* Mac: /usr/local/lib/python3.7/site-packages/cv2/data/
+    #*
+
+    face = cv2.CascadeClassifier(
+        'face_cas.xml')
+    eye = cv2.CascadeClassifier(
+        'eye_cas.xml')
+
 
     framesPerSecond = 60
 
@@ -31,7 +38,7 @@ def cascade(video):
             #     cv2.rectangle(frame, (sx, sy), (sx+sw, sy+sh), (255, 0, 0), 2)
             # * drawing both eyes
             for (ex,ey,ew,eh) in eyes:
-                cv2.rectangle(frame,(ex,ey),(ex+ew,ey+eh),(255,0,0),2)
+                cv2.rectangle(frame, (ex, ey), (ex+ew, ey+eh), (0, 0, 255), 2)
 
         # ? imshow(winname, mat) -> None
         # * display the frame
@@ -45,6 +52,8 @@ def cascade(video):
 
 #* captures the videofeed from camera
 cap = cv2.VideoCapture(1)
+time.sleep(2)
+
 cascade(cap)
 
 #* release everything at the end of the operation
