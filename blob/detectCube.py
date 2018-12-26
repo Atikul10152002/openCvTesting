@@ -17,8 +17,8 @@ class openCvPipeline:
     hsvMaxValue = 255
 
     # * reduced frame rate to avoid lag issues of less powerful computers
-    # framesPerSecond = 2 if sliderEnabled else 1
-    framesPerSecond = 60
+    framesPerSecond = 2 if sliderEnabled else 1
+    # framesPerSecond = 60
 
     # * slider names
     hh = 'Hue High'
@@ -266,7 +266,7 @@ class openCvPipeline:
 cv = openCvPipeline()
 
 #* captures the videofeed from camera
-camera = cv2.VideoCapture(1) #* Try (0) for Windows
+camera = cv2.VideoCapture(1) #* Try (0) for Windows and Linux and (1) for Mac
 time.sleep(2)
 
 cv.run(camera)
