@@ -16,7 +16,6 @@ for point in zip(*loc[::-1]):
     cv2.rectangle(img_rgb, point,
                   (point[0] + w, point[1] + h), (0, 0, 255), 2)
 
-
 cv2.imshow('Template Matching', img_rgb)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
