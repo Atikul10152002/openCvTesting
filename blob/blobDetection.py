@@ -37,6 +37,7 @@ class openCvPipeline:
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
 
+        # * create sliders
         # ? (bar name, window name, min , max, argument)
         if sliderEnabled:
             cv2.createTrackbar(self.hl, self.wnd, self.hueLowStart,
@@ -86,9 +87,12 @@ class openCvPipeline:
                 self.findPart(self.contours)
 
 
+                # * showing contour and mask
+                # ? imshow(winname, mat) -> None
                 cv2.imshow('mask', self.mask)
                 cv2.imshow(self.wnd, self.frame)
 
+                # * defining frames per second
                 key = cv2.waitKey(1000//self.framesPerSecond)
                 if key == ord('s') and sliderEnabled:
                     self.writeHSV(*self.sliderValues)

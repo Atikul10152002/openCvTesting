@@ -4,15 +4,14 @@ import time
 def cascade(video):
     #* openCV provided haar cascades
     #* More cascades are loacted at:
-    #* Mac: /usr/local/lib/python3.7/site-packages/cv2/data/
-    #*
+    #* https://github.com/opencv/opencv/tree/master/data/haarcascades
 
     face = cv2.CascadeClassifier(
         'face_cas.xml')
     eye = cv2.CascadeClassifier(
         'eye_cas.xml')
 
-
+    # * defining frames per seconds
     framesPerSecond = 60
 
     while 1:
