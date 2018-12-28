@@ -1,5 +1,5 @@
 import cv2
-import time
+# import time
 import numpy as np
 import hsv_val
 
@@ -267,7 +267,7 @@ cv = openCvPipeline()
 
 #* captures the videofeed from camera
 camera = cv2.VideoCapture(1) #* Try (0) for Windows and Linux and (1) for Mac
-time.sleep(2)
+# time.sleep(2)
 
 cv.run(camera)
 
