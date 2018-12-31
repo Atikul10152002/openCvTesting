@@ -11,6 +11,14 @@ while True:
     # show image under window
     cv2.imshow("Raw Camera Data", image)
 
+    result = cv2.cvtColor(
+        image,
+        cv2.COLOR_BGR2GRAY
+    )
+
+    # result image under window
+    cv2.imshow("Result", result)
+
     # press 'q' key to break
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
