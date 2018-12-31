@@ -167,6 +167,7 @@ class openCvPipeline:
         radius = int(radius)
         cv2.circle(self.frame, center, radius, (0, 255, 0), 2)
         '''
+
         if len(contours) != 0:
             contour = max(contours, key=cv2.contourArea)
             # ? contourArea(contour[, oriented]) -> retval
@@ -184,7 +185,7 @@ class openCvPipeline:
             if self.A > 1000:
 
                 # ? drawContours(image, contours, contourIdx, color[, thickness[, lineType[, hierarchy[, maxLevel[, offset]]]]]) -> image
-                cv2.drawContours(self.mask, [contour], -1, (0, 255, 0), 3)
+                cv2.drawContours(self.mask, [contour], -1, (255, 0, 0), 3)
                 # * uses the contour's 'moment' to find centroid
                 if self.M['m00'] != 0:
                     # * calculate x,y coordinate of center

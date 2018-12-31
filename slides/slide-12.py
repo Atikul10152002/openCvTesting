@@ -31,10 +31,6 @@ while True:
         result,
         cv2.COLOR_HSV2BGR
     )
-    result = cv2.cvtColor(
-        result,
-        cv2.COLOR_BGR2GRAY
-    )
 
     # result image under window
     cv2.imshow("Result", result)

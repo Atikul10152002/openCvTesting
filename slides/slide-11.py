@@ -13,7 +13,7 @@ while True:
 
     result = cv2.cvtColor(
         image,
-        cv2.COLOR_BGR2GRAY
+        cv2.COLOR_BGR2HSV
     )
 
     # result image under window

@@ -12,12 +12,13 @@ cv2.namedWindow(win, cv2.WINDOW_AUTOSIZE)
 
 
 # create trackbars
-hl = cv2.createTrackbar('Hue Low',  win, 0, 179, nothing)
-hh = cv2.createTrackbar('Hue High', win, 100, 179, nothing)
-sl = cv2.createTrackbar('Saturation Low',  win, 0, 255, nothing)
-sh = cv2.createTrackbar('Saturation High', win, 100, 255, nothing)
-vl = cv2.createTrackbar('Value Low',  win, 0, 255, nothing)
-vh = cv2.createTrackbar('Value High', win, 100, 255, nothing)
+cv2.createTrackbar('Hue Low',  win, 0, 179, nothing)
+cv2.createTrackbar('Hue High', win, 100, 179, nothing)
+cv2.createTrackbar('Saturation Low',  win, 0, 255, nothing)
+cv2.createTrackbar('Saturation High', win, 100, 255, nothing)
+cv2.createTrackbar('Value Low',  win, 0, 255, nothing)
+cv2.createTrackbar('Value High', win, 100, 255, nothing)
+cv2.createTrackbar('Blur', win, 1, 100, nothing)
 
 
 while True:
@@ -39,6 +40,8 @@ while True:
     SatHigh = cv2.getTrackbarPos('Saturation High', win)
     ValLow = cv2.getTrackbarPos('Value Low',  win)
     ValHigh = cv2.getTrackbarPos('Value High', win)
+    Blur = cv2.getTrackbarPos('Blur', win)
+    Blur = Blur if Blur % 2 == 1 else Blur + 1
 
     # Literal values
     HSV_LOW = np.array([HueLow, SatLow, ValLow])
@@ -56,16 +59,20 @@ while True:
         result,
         cv2.COLOR_HSV2BGR
     )
-    result = cv2.cvtColor(
-        result,
-        cv2.COLOR_BGR2GRAY
+
+    result = cv2.GaussianBlur(
+        result, (Blur, Blur), 0
     )
 
-    ret, result = cv2.threshold(imgray, 127, 255, 0)
-    result, contours, hierarchy = cv2.findContours(
-        result,
-        cv2.RETR_TREE,
-        cv2.CHAIN_APPROX_SIMPLE
+    # create morph kernel
+    morphkernel = np.ones((1, 1), np.uint8)
+    # removes specs
+    morphed = cv2.morphologyEx(
+        result, cv2.MORPH_OPEN, morphkernel
+    )
+    # removes holes
+    morphed = cv2.morphologyEx(
+        result, cv2.MORPH_CLOSE, morphkernel
     )
 
     # result image under window
