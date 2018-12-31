@@ -61,7 +61,7 @@ class openCvPipeline:
     def run(self, video):
         self.capture = video
 
-        # * after 100 errors the program breaks
+        # * After 100 tries the program quits
         errors = 0
         while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
@@ -72,20 +72,18 @@ class openCvPipeline:
                                         (int(self.frame.shape[1]/2),
                                          int(self.frame.shape[0]/2)))
 
-
-                # * returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
+                # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
 
-                #* Returns the masked image
+                # * Returns the masked image
                 self.mask = self.getMask(
                     self.frame, *self.sliderValues)
 
-                #* Returns the contour of the masked image
+                # * Returns the contour of the masked image
                 self.contours = self.getContours(self.mask)
 
-                #* draws circle on the contour
+                # * draws circle on the contour
                 self.findPart(self.contours)
-
 
                 # * showing contour and mask
                 # ? imshow(winname, mat) -> None
@@ -94,8 +92,12 @@ class openCvPipeline:
 
                 # * defining frames per second
                 key = cv2.waitKey(1000//self.framesPerSecond)
+
+                # * save the slider values on the keypress of "s"
                 if key == ord('s') and sliderEnabled:
                     self.writeHSV(*self.sliderValues)
+
+                # * quit the program s on the keypress of "q"
                 if key == ord('q'):
                     self.capture.release()
                     break
@@ -197,13 +199,12 @@ class openCvPipeline:
 
                 # * Centroid center circle
                 cv2.circle(self.frame, self.center,
-                            10, (159, 159, 255), -1)
+                           10, (159, 159, 255), -1)
                 # * Centroid surrounding circle
                 cv2.circle(self.frame, self.center,
-                            self.Radius, (255, 0, 0), 5)
+                           self.Radius, (255, 0, 0), 5)
 
                 # print("Object is at ", *self.center)
-
 
     def getContours(self, mask):
         '''
@@ -216,7 +217,7 @@ class openCvPipeline:
         self.grey = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         # blob removal
 
-        #* biggern kernel sizel will lead to more areas being ignored
+        # * biggern kernel sizel will lead to more areas being ignored
         self.morphkernel = np.ones((1, 1), np.uint8)
 
         # self.dilatekernel = np.ones((5, 5), np.uint8)
@@ -229,7 +230,6 @@ class openCvPipeline:
         # self.dialated = cv2.dilate(self.grey, self.kernel, iterations=1)
 
         # ? morphologyEx(src, op, kernel[, dst[, anchor[, iterations[, borderType[, borderValue]]]]]) -> dst
-
 
         self.morphed = cv2.morphologyEx(
             self.grey, cv2.MORPH_CLOSE, self.morphkernel)
@@ -269,12 +269,12 @@ class openCvPipeline:
 
 cv = openCvPipeline()
 
-#* captures the videofeed from camera
-camera = cv2.VideoCapture(1) #* Try (0) for Windows and Linux and (1) for Mac
+# * captures the videofeed from camera
+camera = cv2.VideoCapture(1)  # * Try (0) for Windows and Linux and (1) for Mac
 # time.sleep(2)
 
 cv.run(camera)
 
-#* release everything at the end of the operation
+# * release everything at the end of the operation
 camera.release()
 cv2.destroyAllWindows()
