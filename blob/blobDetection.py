@@ -270,7 +270,7 @@ class openCvPipeline:
 cv = openCvPipeline()
 
 # * captures the videofeed from camera
-camera = cv2.VideoCapture(1)  # * Try (0) for Windows and Linux and (1) for Mac
+camera = cv2.VideoCapture(0)  # * Try (0) for Windows and Linux and (1) for Mac
 # time.sleep(2)
 
 cv.run(camera)
