@@ -35,7 +35,7 @@ class openCvPipeline:
     wnd = 'Colorbars'
     kernelSize = 'kernel_size'
     kernelDivision = 'kernel_division'
-    centers = []
+
 
     def __init__(self):
         # * windows for sliders
@@ -70,20 +70,24 @@ class openCvPipeline:
         # * After 100 tries the program quits
         errors = 0
         frame_counter = 0
-        firstRun = True
-        fullRunCenters = None
         privCenter = None
+        centers = []
 
         while(True):
             # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
             if self.ret == True:
-                self.frame = cv2.rotate(
-                    self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                self.frame = cv2.rotate(self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # * resizing the frame to better fit the screen
+                # self.frame = cv2.resize(self.frame,
+                #                         (int(self.frame.shape[1]/2),
+                #                          int(self.frame.shape[0]/2)))
+
                 self.frame = cv2.resize(self.frame,
                                         (int(self.frame.shape[1]/4),
                                          int(self.frame.shape[0]/4)))
+
+                # self.frame = cv2.flip(self.frame, 1)
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -97,11 +101,11 @@ class openCvPipeline:
 
                 # * draws circle on the contour
                 self.center = self.findPart(self.contours)
-                self.centers.append(self.center)
-                for acenter in self.centers:
+                centers.append(self.center)
+                for acenter in centers:
                     if self.privCenter is not None:
                         cv2.line(
-                            self.mask, acenter, self.privCenter, (255, 0, 0), 1)
+                            self.frame, acenter, self.privCenter, (255, 0, 0), 1)
                         self.privCenter = acenter
                     else:
                         self.privCenter = acenter
@@ -125,6 +129,9 @@ class openCvPipeline:
                 if key == ord('s') and sliderEnabled:
                     self.writeHSV(*self.sliderValues)
 
+                if key == ord('c'):
+                    centers = []
+
                 # * quit the program s on the keypress of "q"
                 if key == ord('q'):
                     self.capture.release()
@@ -134,12 +141,11 @@ class openCvPipeline:
                 # If the last frame is reached, reset the capture and the frame_counter
                 if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
                     frame_counter = 0
-                    if firstRun:
-                        firstRun = False
-                        fullRunCenters = self.centers
-                    self.centers = fullRunCenters
-                    self.privCenter = None
-                    print(len(fullRunCenters))
+                    # if firstRun:
+                    #     fullRunCenters = centers
+                    #     firstRun = False
+                    centers = []
+                    privCenter = None
                     self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
@@ -244,10 +250,10 @@ class openCvPipeline:
                 cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
 
                 # * Centroid center circle
-                cv2.circle(self.mask, self.center,
+                cv2.circle(self.frame, self.center,
                            4, (159, 159, 255), -1)
                 # * Centroid surrounding circle
-                cv2.circle(self.mask, self.center,
+                cv2.circle(self.frame, self.center,
                            self.Radius, (255, 0, 0), 1)
 
         return self.center
@@ -328,8 +334,8 @@ cv = openCvPipeline()
 
 # * captures the videofeed from camera
 # * Try (0) for Windows and Linux and (1) for Mac
-camera = cv2.VideoCapture("/Users/atikul/Downloads/VID_20180921_180711.mp4")
-# camera = cv2.VideoCapture()  # * Try (0) for Windows and Linux and (1) for Mac
+camera = cv2.VideoCapture("VID_20180921_180711.mp4")
+# camera = cv2.VideoCapture(0)  # * Try (0) for Windows and Linux and (1) for Mac
 # time.sleep(2)
 
 cv.run(camera)
