@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import hsv_val
 
-sliderEnabled = True
+sliderEnabled = 0
 
 
 class openCvPipeline:
@@ -14,11 +14,15 @@ class openCvPipeline:
     saturationHighStart = 255
     valueLowStart = 0
     valueHighStart = 255
+    blurLow = 0
+    # * Max values
     hsvMaxValue = 255
+    blurMax = 100
+    privCenter = None
 
     # * reduced frame rate to avoid lag issues of less powerful computers
-    framesPerSecond = 2 if sliderEnabled else 1
-    # framesPerSecond = 60
+    # framesPerSecond = 2 if sliderEnabled else 1
+    framesPerSecond = 60
 
     # * slider names
     hh = 'Hue High'
@@ -36,7 +40,6 @@ class openCvPipeline:
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
-
         # * create sliders
         # ? (bar name, window name, min , max, argument)
         if sliderEnabled:
@@ -52,7 +55,8 @@ class openCvPipeline:
                                self.valueLowStart, self.hsvMaxValue, self.nothing)
             cv2.createTrackbar(self.vh, self.wnd,
                                self.valueHighStart, self.hsvMaxValue, self.nothing)
-            cv2.createTrackbar(self.br, self.wnd, 0, 100, self.nothing)
+            cv2.createTrackbar(self.br, self.wnd, self.blurLow,
+                               self.blurMax, self.nothing)
 
         # * Testing with different values to denoise
         # cv2.createTrackbar(self.kernelSize, self.wnd, 1, 10, self.nothing)
@@ -63,14 +67,17 @@ class openCvPipeline:
 
         # * After 100 tries the program quits
         errors = 0
-        while(self.capture.isOpened()):
+        frame_counter = 0
+        while(True):
+            # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
             if self.ret == True:
-                self.frame = cv2.flip(self.frame, 180)
+                self.frame = cv2.rotate(
+                    self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # * resizing the frame to better fit the screen
                 self.frame = cv2.resize(self.frame,
-                                        (int(self.frame.shape[1]/2),
-                                         int(self.frame.shape[0]/2)))
+                                        (int(self.frame.shape[1]/4),
+                                         int(self.frame.shape[0]/4)))
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -83,7 +90,11 @@ class openCvPipeline:
                 self.contours = self.getContours(self.mask)
 
                 # * draws circle on the contour
-                self.findPart(self.contours)
+                self.center = self.findPart(self.contours)
+
+                self.velocity = self.findVelocity(self.center)
+                print(f"center: {self.center} velocity: ",
+                      "*"*round(self.velocity*80))
 
                 # * showing contour and mask
                 # ? imshow(winname, mat) -> None
@@ -101,6 +112,13 @@ class openCvPipeline:
                 if key == ord('q'):
                     self.capture.release()
                     break
+
+                frame_counter += 1
+                #If the last frame is reached, reset the capture and the frame_counter
+                if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
+                    frame_counter = 0
+                    self.privCenter = None
+                    self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
                 if errors > 100:
@@ -168,6 +186,8 @@ class openCvPipeline:
         cv2.circle(self.frame, center, radius, (0, 255, 0), 2)
         '''
 
+        self.center = (0, 0)
+
         if len(contours) != 0:
             contour = max(contours, key=cv2.contourArea)
             # ? contourArea(contour[, oriented]) -> retval
@@ -192,20 +212,34 @@ class openCvPipeline:
                     self.circleX = int(self.M['m10']/self.M['m00'])
                     self.circleY = int(self.M['m01']/self.M['m00'])
                     self.center = (self.circleX, self.circleY)
-                else:
-                    self.center = (0, 0)
 
                 # ? circle(img, center, radius, color[, thickness[, lineType[, shift]]]) -> img
                 # * The function cv::circle draws a simple or filled circle with a given center and radius
 
+                self.rect = cv2.minAreaRect(contour)
+                self.box = cv2.boxPoints(self.rect)
+                self.box = np.int0(self.box)
+                cv2.drawContours(self.frame, [self.box], 0, (0, 0, 255), 2)
+
                 # * Centroid center circle
                 cv2.circle(self.frame, self.center,
-                           10, (159, 159, 255), -1)
+                           4, (159, 159, 255), -1)
                 # * Centroid surrounding circle
                 cv2.circle(self.frame, self.center,
-                           self.Radius, (255, 0, 0), 5)
+                           self.Radius, (255, 0, 0), 1)
 
-                # print("Object is at ", *self.center)
+        return self.center
+
+    def findVelocity(self, center):
+        self.velocity = 0
+        if self.privCenter == None:
+            self.privCenter = self.center
+        else:
+            self.velocity = (
+                ((((self.privCenter[0]-self.center[0])**2)+((self.privCenter[1]-self.center[1])**2)))**(.5))/60
+            self.privCenter = self.center
+
+        return self.velocity
 
     def getContours(self, mask):
         '''
@@ -271,7 +305,9 @@ class openCvPipeline:
 cv = openCvPipeline()
 
 # * captures the videofeed from camera
-camera = cv2.VideoCapture(0)  # * Try (0) for Windows and Linux and (1) for Mac
+# * Try (0) for Windows and Linux and (1) for Mac
+camera = cv2.VideoCapture("/Users/atikul/Downloads/VID_20180921_180711.mp4")
+# camera = cv2.VideoCapture()  # * Try (0) for Windows and Linux and (1) for Mac
 # time.sleep(2)
 
 cv.run(camera)
