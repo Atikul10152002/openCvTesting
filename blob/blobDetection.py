@@ -1,4 +1,5 @@
 import cv2
+import os
 # import time
 import numpy as np
 import hsv_val
@@ -36,13 +37,11 @@ class openCvPipeline:
     kernelSize = 'kernel_size'
     kernelDivision = 'kernel_division'
 
-
     def __init__(self):
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
         # * create sliders
-
         # ? (bar name, window name, min , max, argument)
         if sliderEnabled:
             cv2.createTrackbar(self.hl, self.wnd, self.hueLowStart,
@@ -70,24 +69,18 @@ class openCvPipeline:
         # * After 100 tries the program quits
         errors = 0
         frame_counter = 0
-        privCenter = None
         centers = []
-
+        privCenter = None
         while(True):
             # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
             if self.ret == True:
-                self.frame = cv2.rotate(self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # self.frame = cv2.rotate(
+                    # self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # * resizing the frame to better fit the screen
-                # self.frame = cv2.resize(self.frame,
-                #                         (int(self.frame.shape[1]/2),
-                #                          int(self.frame.shape[0]/2)))
-
                 self.frame = cv2.resize(self.frame,
-                                        (int(self.frame.shape[1]/4),
-                                         int(self.frame.shape[0]/4)))
-
-                # self.frame = cv2.flip(self.frame, 1)
+                                        (int(self.frame.shape[1]//1.5),
+                                         int(self.frame.shape[0]//1.5)))
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -103,16 +96,18 @@ class openCvPipeline:
                 self.center = self.findPart(self.contours)
                 centers.append(self.center)
                 for acenter in centers:
-                    if self.privCenter is not None:
+                    if privCenter is not None:
                         cv2.line(
-                            self.frame, acenter, self.privCenter, (255, 0, 0), 1)
-                        self.privCenter = acenter
+                            self.mask, acenter, privCenter, (255, 0, 0), 1)
+                        privCenter = acenter
                     else:
-                        self.privCenter = acenter
+                        privCenter = acenter
+
 
                 self.velocity = self.findVelocity(self.center)
+
                 cv2.putText(self.mask,  "."*round(self.velocity*120),
-                    (0, 15), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 10, cv2.LINE_AA)
+                        (0, 15), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 10, cv2.LINE_AA)
                 # print(f"center:", " " * ((10)-len(str(self.center))),
                 #       self.center, " velocity: ", "*"*round(self.velocity*80))
 
@@ -125,12 +120,12 @@ class openCvPipeline:
                 # * defining frames per second
                 key = cv2.waitKey(1000//self.framesPerSecond)
 
+                if key == ord('c'):
+                    centers = []
+
                 # * save the slider values on the keypress of "s"
                 if key == ord('s') and sliderEnabled:
                     self.writeHSV(*self.sliderValues)
-
-                if key == ord('c'):
-                    centers = []
 
                 # * quit the program s on the keypress of "q"
                 if key == ord('q'):
@@ -141,11 +136,8 @@ class openCvPipeline:
                 # If the last frame is reached, reset the capture and the frame_counter
                 if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
                     frame_counter = 0
-                    # if firstRun:
-                    #     fullRunCenters = centers
-                    #     firstRun = False
+                    self.privCenter = None
                     centers = []
-                    privCenter = None
                     self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
@@ -250,10 +242,10 @@ class openCvPipeline:
                 cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
 
                 # * Centroid center circle
-                cv2.circle(self.frame, self.center,
+                cv2.circle(self.mask, self.center,
                            4, (159, 159, 255), -1)
                 # * Centroid surrounding circle
-                cv2.circle(self.frame, self.center,
+                cv2.circle(self.mask, self.center,
                            self.Radius, (255, 0, 0), 1)
 
         return self.center
@@ -333,13 +325,17 @@ class openCvPipeline:
 cv = openCvPipeline()
 
 # * captures the videofeed from camera
-# * Try (0) for Windows and Linux and (1) for Mac
-camera = cv2.VideoCapture("VID_20180921_180711.mp4")
-# camera = cv2.VideoCapture(0)  # * Try (0) for Windows and Linux and (1) for Mac
+# * Try (0) or (1)
+source = cv2.VideoCapture(0)
+
+filePath = "VID_20180921_180711.mp4"
+source = cv2.VideoCapture(
+    os.path.join(os.path.abspath(os.path.dirname(__file__)), filePath))
+# camera = cv2.VideoCapture(0)
 # time.sleep(2)
 
-cv.run(camera)
+cv.run(source)
 
 # * release everything at the end of the operation
-camera.release()
+source.release()
 cv2.destroyAllWindows()
