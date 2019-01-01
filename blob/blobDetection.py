@@ -35,12 +35,14 @@ class openCvPipeline:
     wnd = 'Colorbars'
     kernelSize = 'kernel_size'
     kernelDivision = 'kernel_division'
+    centers = []
 
     def __init__(self):
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
         # * create sliders
+
         # ? (bar name, window name, min , max, argument)
         if sliderEnabled:
             cv2.createTrackbar(self.hl, self.wnd, self.hueLowStart,
@@ -68,6 +70,10 @@ class openCvPipeline:
         # * After 100 tries the program quits
         errors = 0
         frame_counter = 0
+        firstRun = True
+        fullRunCenters = None
+        privCenter = None
+
         while(True):
             # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
@@ -91,10 +97,21 @@ class openCvPipeline:
 
                 # * draws circle on the contour
                 self.center = self.findPart(self.contours)
+                self.centers.append(self.center)
+                for acenter in self.centers:
+                    if self.privCenter is not None:
+                        cv2.line(
+                            self.mask, acenter, self.privCenter, (255, 0, 0), 1)
+                        self.privCenter = acenter
+                    else:
+                        self.privCenter = acenter
 
                 self.velocity = self.findVelocity(self.center)
-                print(f"center: {self.center} velocity: ",
-                      "*"*round(self.velocity*80))
+                cv2.putText(self.mask,  "."*round(self.velocity*120),
+                    (0, 15), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 10, cv2.LINE_AA)
+                # print(f"center:", " " * ((10)-len(str(self.center))),
+                #       self.center, " velocity: ", "*"*round(self.velocity*80))
+
 
                 # * showing contour and mask
                 # ? imshow(winname, mat) -> None
@@ -114,10 +131,15 @@ class openCvPipeline:
                     break
 
                 frame_counter += 1
-                #If the last frame is reached, reset the capture and the frame_counter
+                # If the last frame is reached, reset the capture and the frame_counter
                 if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
                     frame_counter = 0
+                    if firstRun:
+                        firstRun = False
+                        fullRunCenters = self.centers
+                    self.centers = fullRunCenters
                     self.privCenter = None
+                    print(len(fullRunCenters))
                     self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
@@ -205,7 +227,7 @@ class openCvPipeline:
             if self.A > 1000:
 
                 # ? drawContours(image, contours, contourIdx, color[, thickness[, lineType[, hierarchy[, maxLevel[, offset]]]]]) -> image
-                cv2.drawContours(self.mask, [contour], -1, (255, 0, 0), 3)
+                cv2.drawContours(self.mask, [contour], -1, (0, 0, 255), 3)
                 # * uses the contour's 'moment' to find centroid
                 if self.M['m00'] != 0:
                     # * calculate x,y coordinate of center
@@ -219,13 +241,13 @@ class openCvPipeline:
                 self.rect = cv2.minAreaRect(contour)
                 self.box = cv2.boxPoints(self.rect)
                 self.box = np.int0(self.box)
-                cv2.drawContours(self.frame, [self.box], 0, (0, 0, 255), 2)
+                cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
 
                 # * Centroid center circle
-                cv2.circle(self.frame, self.center,
+                cv2.circle(self.mask, self.center,
                            4, (159, 159, 255), -1)
                 # * Centroid surrounding circle
-                cv2.circle(self.frame, self.center,
+                cv2.circle(self.mask, self.center,
                            self.Radius, (255, 0, 0), 1)
 
         return self.center
