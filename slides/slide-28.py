@@ -18,7 +18,7 @@ cv2.createTrackbar('Saturation Low',  win, 100, 255, nothing)
 cv2.createTrackbar('Saturation High', win, 255, 255, nothing)
 cv2.createTrackbar('Value Low',  win, 100, 255, nothing)
 cv2.createTrackbar('Value High', win, 255, 255, nothing)
-cv2.createTrackbar('Blur', win, 50, 100, nothing)
+cv2.createTrackbar('Blur', win, 30, 100, nothing)
 
 x, y, radius = 0, 0, 0
 while True:
@@ -64,13 +64,14 @@ while True:
     # create morph kernel
     morphkernel = np.ones((1, 1), np.uint8)
     # removes specs
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_OPEN, morphkernel
     )
     # removes holes
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_CLOSE, morphkernel
     )
+
 
     result = cv2.GaussianBlur(
         result, (Blur, Blur), 0

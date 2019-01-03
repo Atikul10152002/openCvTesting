@@ -64,11 +64,11 @@ while True:
     # create morph kernel
     morphkernel = np.ones((1, 1), np.uint8)
     # removes specs
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_OPEN, morphkernel
     )
     # removes holes
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_CLOSE, morphkernel
     )
 
