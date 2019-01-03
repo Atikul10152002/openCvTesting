@@ -1,43 +1,46 @@
 import cv2
 import os
 # import time
-import numpy as np
 import hsv_val
+import numpy as np
 
 sliderEnabled = 0
 
-
 class openCvPipeline:
-    # * default color slider positions
-    hueLowStart = 0
-    hueHighStart = 255
-    saturationLowStart = 0
-    saturationHighStart = 255
-    valueLowStart = 0
-    valueHighStart = 255
-    blurLow = 0
-    # * Max values
-    hsvMaxValue = 255
-    blurMax = 100
-    privCenter = None
 
-    # * reduced frame rate to avoid lag issues of less powerful computers
-    # framesPerSecond = 2 if sliderEnabled else 1
-    framesPerSecond = 60
 
-    # * slider names
-    hh = 'Hue High'
-    hl = 'Hue Low'
-    sh = 'Saturation High'
-    sl = 'Saturation Low'
-    vh = 'Value High'
-    vl = 'Value Low'
-    br = 'Blur'
-    wnd = 'Colorbars'
-    kernelSize = 'kernel_size'
-    kernelDivision = 'kernel_division'
+    def __init__(self, video):
+        self.video = video
 
-    def __init__(self):
+        # * default color slider positions
+        self.hueLowStart = 0
+        self.hueHighStart = 255
+        self.saturationLowStart = 0
+        self.saturationHighStart = 255
+        self.valueLowStart = 0
+        self.valueHighStart = 255
+        self.blurLow = 0
+        # * Max values
+        self.hsvMaxValue = 255
+        self.blurMax = 100
+        self.privCenter = None
+
+        # * reduced frame rate to avoid lag issues of less powerful computers
+        # framesPerSecond = 2 if sliderEnabled else self.video.get(cv2.CAP_PROP_FPS)
+        self.framesPerSecond = 60
+
+        # * slider names
+        self.hh = 'Hue High'
+        self.hl = 'Hue Low'
+        self.sh = 'Saturation High'
+        self.sl = 'Saturation Low'
+        self.vh = 'Value High'
+        self.vl = 'Value Low'
+        self.br = 'Blur'
+        self.wnd = 'Colorbars'
+        self.kernelSize = 'kernel_size'
+        self.kernelDivision = 'kernel_division'
+
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
@@ -63,14 +66,19 @@ class openCvPipeline:
         # cv2.createTrackbar(self.kernelSize, self.wnd, 1, 10, self.nothing)
         # cv2.createTrackbar(self.kernelDivision, self.wnd, 1, 25, self.nothing)
 
-    def run(self, video):
-        self.capture = video
+    def run(self):
+        self.capture = self.video
 
         # * After 100 tries the program quits
         errors = 0
         frame_counter = 0
         centers = []
         privCenter = None
+        fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+        writer = None
+
+        print(f"source FPS: {self.capture.get(cv2.CAP_PROP_FPS)}")
+
         while(True):
             # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
@@ -78,9 +86,15 @@ class openCvPipeline:
                 # self.frame = cv2.rotate(
                     # self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # * resizing the frame to better fit the screen
+                # self.frame = cv2.flip(self.frame, 1)
                 self.frame = cv2.resize(self.frame,
                                         (int(self.frame.shape[1]//1.5),
                                          int(self.frame.shape[0]//1.5)))
+
+                if writer == None:
+                    h, w = (self.frame.shape[0], self.frame.shape[1])
+                    writer = cv2.VideoWriter(
+                        "output.avi", fourcc, 1000/self.capture.get(cv2.CAP_PROP_FPS), (w, h), True)
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -94,20 +108,21 @@ class openCvPipeline:
 
                 # * draws circle on the contour
                 self.center = self.findPart(self.contours)
+
+
                 centers.append(self.center)
                 for acenter in centers:
                     if privCenter is not None:
                         cv2.line(
-                            self.mask, acenter, privCenter, (255, 0, 0), 1)
+                            self.frame, acenter, privCenter, (255, 0, 0), 1)
                         privCenter = acenter
                     else:
                         privCenter = acenter
 
-
                 self.velocity = self.findVelocity(self.center)
 
-                cv2.putText(self.mask,  "."*round(self.velocity*120),
-                        (0, 15), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 10, cv2.LINE_AA)
+                cv2.putText(self.frame,  "."*round(self.velocity*120),
+                        (0, 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 255, 255), 10, cv2.LINE_AA)
                 # print(f"center:", " " * ((10)-len(str(self.center))),
                 #       self.center, " velocity: ", "*"*round(self.velocity*80))
 
@@ -117,31 +132,43 @@ class openCvPipeline:
                 cv2.imshow('mask', self.mask)
                 cv2.imshow(self.wnd, self.frame)
 
-                # * defining frames per second
-                key = cv2.waitKey(1000//self.framesPerSecond)
+                output = np.zeros((h, w, 3), dtype="uint8")
+                output[0:h, 0:w] = self.frame
 
-                if key == ord('c'):
-                    centers = []
+                writer.write(output)
+
+                # * defining frames per second
+                if sliderEnabled:
+                    key = cv2.waitKey(1)
+                else:
+                    key = cv2.waitKey(int(1000//self.framesPerSecond))
 
                 # * save the slider values on the keypress of "s"
                 if key == ord('s') and sliderEnabled:
                     self.writeHSV(*self.sliderValues)
 
                 # * quit the program s on the keypress of "q"
-                if key == ord('q'):
+                elif key == ord('q'):
                     self.capture.release()
+                    writer.release()
                     break
 
-                frame_counter += 1
-                # If the last frame is reached, reset the capture and the frame_counter
-                if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
-                    frame_counter = 0
-                    self.privCenter = None
+                elif key == ord('c'):
                     centers = []
-                    self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+
+                # frame_counter += 1
+                # # If the last frame is reached, reset the capture and the frame_counter
+                # if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
+                #     frame_counter = 0
+                #     self.privCenter = None
+                #     centers = []
+                #     self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
                 if errors > 100:
+                    self.capture.release()
+                    writer.release()
                     break
 
     def nothing(self, *a, **k):
@@ -157,7 +184,7 @@ class openCvPipeline:
         '''
 
         # * Appending the final HSV values to the `file`
-        with open('hsv_val.py', 'a') as file:
+        with open(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'hsv_val.py'), 'a') as file:
             file.write('#'*10 + '\n')
             file.write('hueLow = ' + str(hueLow) + '\n')
             file.write('hueHigh = ' + str(hueHigh) + '\n')
@@ -209,6 +236,7 @@ class openCvPipeline:
         self.center = (0, 0)
 
         if len(contours) != 0:
+            # for contour in contours:
             contour = max(contours, key=cv2.contourArea)
             # ? contourArea(contour[, oriented]) -> retval
             # * The function computes a contour area. Similarly to moments , the area is computed using the Green. formula. Thus, the returned area and the number of non-zero pixels, if you draw the contour using. \  # drawContours or \#fillPoly , can be different. Also, the function will most certainly give a wrong. results for contours with self-intersections
@@ -242,11 +270,11 @@ class openCvPipeline:
                 cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
 
                 # * Centroid center circle
-                cv2.circle(self.mask, self.center,
-                           4, (159, 159, 255), -1)
+                cv2.circle(self.frame, self.center,
+                        4, (0, 0, 255), -1)
                 # * Centroid surrounding circle
-                cv2.circle(self.mask, self.center,
-                           self.Radius, (255, 0, 0), 1)
+                cv2.circle(self.frame, self.center,
+                        self.Radius, (255, 0, 0), 1)
 
         return self.center
 
@@ -322,19 +350,18 @@ class openCvPipeline:
         return mask
 
 
-cv = openCvPipeline()
 
 # * captures the videofeed from camera
 # * Try (0) or (1)
-source = cv2.VideoCapture(0)
+# source = cv2.VideoCapture(0)
 
 filePath = "VID_20180921_180711.mp4"
 source = cv2.VideoCapture(
     os.path.join(os.path.abspath(os.path.dirname(__file__)), filePath))
-# camera = cv2.VideoCapture(0)
-# time.sleep(2)
 
-cv.run(source)
+
+cv = openCvPipeline(source)
+cv.run()
 
 # * release everything at the end of the operation
 source.release()
