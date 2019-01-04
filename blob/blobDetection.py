@@ -1,4 +1,3 @@
-import imageio
 import cv2
 import os
 # import time
@@ -6,8 +5,8 @@ import hsv_val
 import numpy as np
 
 sliderEnabled = 0
-loop = 1
-maxLineCount = 50
+loop = 0
+record  = 0
 
 class openCvPipeline:
     def __init__(self, video):
@@ -42,6 +41,8 @@ class openCvPipeline:
         self.kernelSize = 'kernel_size'
         self.kernelDivision = 'kernel_division'
 
+        self.clicks = []
+        self.maxLineCount = 50
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
@@ -76,10 +77,11 @@ class openCvPipeline:
         pnts = []
         fourcc = cv2.VideoWriter_fourcc(*"MJPG")
         writer = None
+        self.actualFPS = self.capture.get(cv2.CAP_PROP_FPS)
 
-        print(f"source FPS: {self.capture.get(cv2.CAP_PROP_FPS)}")
+        print(f"source FPS: {self.actualFPS}")
 
-        while(True):
+        while(1):
             # while(self.capture.isOpened()):
             self.ret, self.frame = self.capture.read()
             if self.ret == True:
@@ -88,13 +90,13 @@ class openCvPipeline:
                 # * resizing the frame to better fit the screen
                 # self.frame = cv2.flip(self.frame, 1)
                 self.frame = cv2.resize(self.frame,
-                                        (int(self.frame.shape[1]//1.5),
-                                         int(self.frame.shape[0]//1.5)))
+                                        (int(self.frame.shape[1]//2),
+                                         int(self.frame.shape[0]//2)))
 
-                if writer == None:
+                if writer == None and record:
                     h, w = (self.frame.shape[0], self.frame.shape[1])
                     writer = cv2.VideoWriter(
-                        "output.avi", fourcc, 1000/self.capture.get(cv2.CAP_PROP_FPS), (w, h), True)
+                        "output.avi", fourcc, 1000/self.actualFPS, (w*2, h), True)
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -112,32 +114,42 @@ class openCvPipeline:
 
                 # TRAIL
                 pnts.append(self.center)
-                if len(pnts) > maxLineCount:
+                if len(pnts) > self.maxLineCount:
                     pnts.pop(0)
                 for i in range(1, len(pnts)):
                     if pnts[i - 1] is None or pnts[i] is None:
                         continue
-                    thickness = int(i//5) if int(i//5) != 0 else 1
+                    thickness = int(i//7) if int(i//7) != 0 else 1
                     cv2.line(self.frame, pnts[i - 1],
                              pnts[i], (0, 0, 255), thickness)
 
                 # VELOCITY
-                self.velocity = self.findVelocity(self.center)
-                cv2.putText(self.frame,  "."*round(self.velocity*120),
+                self.velocityPix = self.findVelocity(self.center)
+                cv2.putText(self.frame,  "."*round((self.velocityPix/self.actualFPS)*60),
                         (0, 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 255, 255), 10, cv2.LINE_AA)
                 # print(f"center:", " " * ((10)-len(str(self.center))),
-                #       self.center, " velocity: ", "*"*round(self.velocity*80))
+                #       self.center, " velocity: ", "*"*round((self.velocity/self.actualFPS)*80))
 
+                cv2.setMouseCallback(self.wnd, self.mouse_click)
+                if len(self.clicks) == 2:
+                    lineHeight = abs(self.clicks[0][1]-self.clicks[1][1])
+                    pixToInch = lineHeight/96
+                    self.velocity = (self.velocityPix*pixToInch)/self.actualFPS
+                    print(f"velocity: {round(self.velocity, 5)} per inch")
+                    cv2.line(
+                        self.frame, self.clicks[0], (self.clicks[0][0], self.clicks[0][1]+lineHeight), (255,0,0), 1)
 
                 # * showing contour and mask
                 # ? imshow(winname, mat) -> None
                 cv2.imshow('mask', self.mask)
                 cv2.imshow(self.wnd, self.frame)
 
-                output = np.zeros((h, w, 3), dtype="uint8")
-                output[0:h, 0:w] = self.frame
+                if record:
+                    output = np.zeros((h, w*2, 3), dtype="uint8")
+                    output[0:h, 0:w] = self.mask
+                    output[0:h, w:w*2] = self.frame
 
-                writer.write(output)
+                    writer.write(output)
 
                 # * defining frames per second
                 if sliderEnabled:
@@ -152,8 +164,12 @@ class openCvPipeline:
                 # * quit the program s on the keypress of "q"
                 elif key == ord('q'):
                     self.capture.release()
-                    writer.release()
+                    if record:
+                        writer.release()
                     break
+
+                elif key == ord('c'):
+                    self.clicks = []
 
                 if loop:
                     frame_counter += 1
@@ -166,7 +182,8 @@ class openCvPipeline:
                 errors += 1
                 if errors > 100:
                     self.capture.release()
-                    writer.release()
+                    if record:
+                        writer.release()
                     break
 
     def nothing(self, *a, **k):
@@ -234,45 +251,45 @@ class openCvPipeline:
         self.center = (0, 0)
 
         if len(contours) != 0:
-            # for contour in contours:
-            contour = max(contours, key=cv2.contourArea)
-            # ? contourArea(contour[, oriented]) -> retval
-            # * The function computes a contour area. Similarly to moments , the area is computed using the Green. formula. Thus, the returned area and the number of non-zero pixels, if you draw the contour using. \  # drawContours or \#fillPoly , can be different. Also, the function will most certainly give a wrong. results for contours with self-intersections
-            self.A = cv2.contourArea(contour)
+            for contour in contours:
+                # contour = max(contours, key=cv2.contourArea)
+                # ? contourArea(contour[, oriented]) -> retval
+                # * The function computes a contour area. Similarly to moments , the area is computed using the Green. formula. Thus, the returned area and the number of non-zero pixels, if you draw the contour using. \  # drawContours or \#fillPoly , can be different. Also, the function will most certainly give a wrong. results for contours with self-intersections
+                self.A = cv2.contourArea(contour)
 
-            # ? moments(array[, binaryImage]) -> retval
-            # * The function computes moments, up to the 3rd order, of a vector shape or a rasterized shape. The results are returned in the structure cv: : Moments.
-            # * Image Moment is a particular weighted average of image pixel intensities
-            # * calculates moments of binary image
-            self.M = cv2.moments(contour)
-            # * Radius = sqrt(Area * Pi)
-            self.Radius = int((self.A/3.14)**(.5))
-            # ? change this value if target is smaller/larger
-            if self.A > 1000:
+                # ? moments(array[, binaryImage]) -> retval
+                # * The function computes moments, up to the 3rd order, of a vector shape or a rasterized shape. The results are returned in the structure cv: : Moments.
+                # * Image Moment is a particular weighted average of image pixel intensities
+                # * calculates moments of binary image
+                self.M = cv2.moments(contour)
+                # * Radius = sqrt(Area * Pi)
+                self.Radius = int((self.A/3.14)**(.5))
+                # ? change this value if target is smaller/larger
+                if self.A > 1000:
 
-                # ? drawContours(image, contours, contourIdx, color[, thickness[, lineType[, hierarchy[, maxLevel[, offset]]]]]) -> image
-                cv2.drawContours(self.mask, [contour], -1, (0, 0, 255), 3)
-                # * uses the contour's 'moment' to find centroid
-                if self.M['m00'] != 0:
-                    # * calculate x,y coordinate of center
-                    self.circleX = int(self.M['m10']/self.M['m00'])
-                    self.circleY = int(self.M['m01']/self.M['m00'])
-                    self.center = (self.circleX, self.circleY)
+                    # ? drawContours(image, contours, contourIdx, color[, thickness[, lineType[, hierarchy[, maxLevel[, offset]]]]]) -> image
+                    cv2.drawContours(self.mask, [contour], -1, (0, 0, 255), 3)
+                    # * uses the contour's 'moment' to find centroid
+                    if self.M['m00'] != 0:
+                        # * calculate x,y coordinate of center
+                        self.circleX = int(self.M['m10']/self.M['m00'])
+                        self.circleY = int(self.M['m01']/self.M['m00'])
+                        self.center = (self.circleX, self.circleY)
 
-                # ? circle(img, center, radius, color[, thickness[, lineType[, shift]]]) -> img
-                # * The function cv::circle draws a simple or filled circle with a given center and radius
+                    # ? circle(img, center, radius, color[, thickness[, lineType[, shift]]]) -> img
+                    # * The function cv::circle draws a simple or filled circle with a given center and radius
 
-                self.rect = cv2.minAreaRect(contour)
-                self.box = cv2.boxPoints(self.rect)
-                self.box = np.int0(self.box)
-                cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
+                    self.rect = cv2.minAreaRect(contour)
+                    self.box = cv2.boxPoints(self.rect)
+                    self.box = np.int0(self.box)
+                    cv2.drawContours(self.frame, [self.box], 0, (0, 255, 0), 2)
 
-                # * Centroid center circle
-                cv2.circle(self.frame, self.center,
-                        4, (0, 0, 255), -1)
-                # * Centroid surrounding circle
-                cv2.circle(self.frame, self.center,
-                        self.Radius, (255, 0, 0), 1)
+                    # * Centroid center circle
+                    cv2.circle(self.frame, self.center,
+                            4, (0, 0, 255), -1)
+                    # * Centroid surrounding circle
+                    cv2.circle(self.frame, self.center,
+                            self.Radius, (255, 0, 0), 1)
 
         return self.center
 
@@ -282,10 +299,16 @@ class openCvPipeline:
             self.privCenter = self.center
         else:
             self.velocity = (
-                ((((self.privCenter[0]-self.center[0])**2)+((self.privCenter[1]-self.center[1])**2)))**(.5))/60
+                ((((self.privCenter[0]-self.center[0])**2)+((self.privCenter[1]-self.center[1])**2)))**(.5))
             self.privCenter = self.center
 
         return self.velocity
+
+    # @staticmethod
+    def mouse_click(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if len(self.clicks) <= 2:
+                self.clicks.append((x,y))
 
     def getContours(self, mask):
         '''
@@ -351,11 +374,11 @@ class openCvPipeline:
 
 # * captures the videofeed from camera
 # * Try (0) or (1)
-# source = cv2.VideoCapture(0)
+source = cv2.VideoCapture(0)
 
-filePath = "VID_20180921_180711.mp4"
-source = cv2.VideoCapture(
-    os.path.join(os.path.abspath(os.path.dirname(__file__)), filePath))
+# filePath = "VID_20180921_180711.mp4"
+# source = cv2.VideoCapture(
+#     os.path.join(os.path.abspath(os.path.dirname(__file__)), filePath))
 
 
 cv = openCvPipeline(source)
