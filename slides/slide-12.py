@@ -7,6 +7,8 @@ cap = cv2.VideoCapture(0)
 while True:
     #* Get the image from camera 0
     _, image = cap.read()
+    image = cv2.resize(image, (int(image.shape[1]//2),
+                               int(image.shape[0]//2)))
 
     #* show image under window
     cv2.imshow("Raw Camera Data", image)
@@ -17,3 +19,6 @@ while True:
 
 # *  When everything done, release the capture
 cv2.destroyAllWindows()
+
+
+
