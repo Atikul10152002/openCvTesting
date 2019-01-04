@@ -1,3 +1,4 @@
+import imageio
 import cv2
 import os
 # import time
@@ -5,10 +6,10 @@ import hsv_val
 import numpy as np
 
 sliderEnabled = 0
+loop = 1
+maxLineCount = 50
 
 class openCvPipeline:
-
-
     def __init__(self, video):
         self.video = video
 
@@ -72,8 +73,7 @@ class openCvPipeline:
         # * After 100 tries the program quits
         errors = 0
         frame_counter = 0
-        centers = []
-        privCenter = None
+        pnts = []
         fourcc = cv2.VideoWriter_fourcc(*"MJPG")
         writer = None
 
@@ -110,17 +110,19 @@ class openCvPipeline:
                 self.center = self.findPart(self.contours)
 
 
-                centers.append(self.center)
-                for acenter in centers:
-                    if privCenter is not None:
-                        cv2.line(
-                            self.frame, acenter, privCenter, (255, 0, 0), 1)
-                        privCenter = acenter
-                    else:
-                        privCenter = acenter
+                # TRAIL
+                pnts.append(self.center)
+                if len(pnts) > maxLineCount:
+                    pnts.pop(0)
+                for i in range(1, len(pnts)):
+                    if pnts[i - 1] is None or pnts[i] is None:
+                        continue
+                    thickness = int(i//5) if int(i//5) != 0 else 1
+                    cv2.line(self.frame, pnts[i - 1],
+                             pnts[i], (0, 0, 255), thickness)
 
+                # VELOCITY
                 self.velocity = self.findVelocity(self.center)
-
                 cv2.putText(self.frame,  "."*round(self.velocity*120),
                         (0, 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 255, 255), 10, cv2.LINE_AA)
                 # print(f"center:", " " * ((10)-len(str(self.center))),
@@ -153,17 +155,13 @@ class openCvPipeline:
                     writer.release()
                     break
 
-                elif key == ord('c'):
-                    centers = []
-
-
-                # frame_counter += 1
-                # # If the last frame is reached, reset the capture and the frame_counter
-                # if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
-                #     frame_counter = 0
-                #     self.privCenter = None
-                #     centers = []
-                #     self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                if loop:
+                    frame_counter += 1
+                    # If the last frame is reached, reset the capture and the frame_counter
+                    if frame_counter == self.capture.get(cv2.CAP_PROP_FRAME_COUNT):
+                        frame_counter = 0
+                        self.privCenter = None
+                        self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             else:
                 errors += 1
                 if errors > 100:
