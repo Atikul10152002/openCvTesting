@@ -25,6 +25,9 @@ while True:
     # Get the image from camera 0
     _, image = cap.read()
 
+
+    image = cv2.resize(image, (image.shape[1]//2, image.shape[0]//2))
+
     # show image under window
     cv2.imshow("Raw Camera Data", image)
 
@@ -98,12 +101,10 @@ while True:
             cv2.drawContours(
                 result,
                 [contour],
-                -10, (0, 0, 255), 4
+                -10, (0, 0, 255), 2
             )
-            # Draw centroid
-            cv2.circle(result, center, 10, (255, 0, 0), 20)
 
-            cv2.circle(result, center, radius, (0, 255, 0), 20)
+            cv2.circle(result, center, radius, (0, 255, 0), 4)
 
     # result image under window
     cv2.imshow(win, result)
