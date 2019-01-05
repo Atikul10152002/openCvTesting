@@ -25,6 +25,8 @@ while True:
     # Get the image from camera 0
     _, image = cap.read()
 
+    image = cv2.resize(image, (image.shape[1]//2, image.shape[0]//2))
+
     # show image under window
     cv2.imshow("Raw Camera Data", image)
 
@@ -67,13 +69,14 @@ while True:
     # create morph kernel
     morphkernel = np.ones((1, 1), np.uint8)
     # removes specs
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_OPEN, morphkernel
     )
     # removes holes
-    morphed = cv2.morphologyEx(
+    result = cv2.morphologyEx(
         result, cv2.MORPH_CLOSE, morphkernel
     )
+
 
     # result image under window
     cv2.imshow(win, result)
