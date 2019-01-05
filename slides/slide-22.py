@@ -25,6 +25,9 @@ while True:
     # Get the image from camera 0
     _, image = cap.read()
 
+    image = cv2.resize(image, (int(image.shape[1]//2),
+                               int(image.shape[0]//2)))
+
     # show image under window
     cv2.imshow("Raw Camera Data", image)
 
@@ -103,7 +106,7 @@ while True:
             # Draw centroid
             cv2.circle(result, center, 10, (255, 0, 0), 20)
 
-            cv2.circle(result, center, radius, (0, 255, 0), 20)
+            cv2.circle(result, center, radius, (0, 255, 0), 4)
 
     if radius > 100:
         print("({}, {}), radius: {}".format(int(x), int(y), int(radius)))

@@ -12,19 +12,18 @@ cv2.namedWindow(win, cv2.WINDOW_AUTOSIZE)
 
 
 # create trackbars
-cv2.createTrackbar('Hue Low',  win, 27, 179, nothing)
-cv2.createTrackbar('Hue High', win, 40, 179, nothing)
-cv2.createTrackbar('Saturation Low',  win, 100, 255, nothing)
-cv2.createTrackbar('Saturation High', win, 255, 255, nothing)
-cv2.createTrackbar('Value Low',  win, 100, 255, nothing)
-cv2.createTrackbar('Value High', win, 255, 255, nothing)
-cv2.createTrackbar('Blur', win, 50, 100, nothing)
+cv2.createTrackbar('Hue Low',  win, 0, 179, nothing)
+cv2.createTrackbar('Hue High', win, 100, 179, nothing)
+cv2.createTrackbar('Saturation Low',  win, 0, 255, nothing)
+cv2.createTrackbar('Saturation High', win, 100, 255, nothing)
+cv2.createTrackbar('Value Low',  win, 0, 255, nothing)
+cv2.createTrackbar('Value High', win, 100, 255, nothing)
+cv2.createTrackbar('Blur', win, 1, 100, nothing)
 
 
 while True:
     # Get the image from camera 0
     _, image = cap.read()
-
 
     image = cv2.resize(image, (image.shape[1]//2, image.shape[0]//2))
 
@@ -51,17 +50,20 @@ while True:
     HSV_HIGH = np.array([HueHigh, SatHigh, ValHigh])
 
     # Filter values with mask
-    mask = cv2.inRange(result, HSV_LOW, HSV_HIGH)
     result = cv2.bitwise_and(
         result,
         result,
-        mask=mask
+        mask=cv2.inRange(result, HSV_LOW, HSV_HIGH)
     )
 
     # Convert result to BGR then to GRAY
     result = cv2.cvtColor(
         result,
         cv2.COLOR_HSV2BGR
+    )
+
+    result = cv2.GaussianBlur(
+        result, (Blur, Blur), 0
     )
 
     # create morph kernel
@@ -75,36 +77,6 @@ while True:
         result, cv2.MORPH_CLOSE, morphkernel
     )
 
-
-    result = cv2.GaussianBlur(
-        result, (Blur, Blur), 0
-    )
-
-    # find irregular shapes using mask
-    contours = cv2.findContours(
-        mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-    )[1]
-
-    # if there is one or more contours
-    if len(contours) > 0:
-        # get shape with max area
-        contour = max(contours, key=cv2.contourArea)
-
-        # if that area is large enough
-        if cv2.contourArea(contour) > 100:
-            # get the centroid of object
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-            center = (int(x), int(y))
-            radius = int(radius)
-
-            # Draw Contour
-            cv2.drawContours(
-                result,
-                [contour],
-                -10, (0, 0, 255), 2
-            )
-
-            cv2.circle(result, center, radius, (0, 255, 0), 4)
 
     # result image under window
     cv2.imshow(win, result)
