@@ -8,6 +8,8 @@ while True:
     # Get the image from camera 0
     _, image = cap.read()
 
+    image = cv2.resize(image, (image.shape[1]//2, image.shape[0]//2))
+
     # show image under window
     cv2.imshow("Raw Camera Data", image)
 
