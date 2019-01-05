@@ -8,8 +8,6 @@ sliderEnabled = 0
 useSavedValues = 1
 
 loop = 0
-bothSide = 0
-record = 0
 
 
 class openCvPipeline:
@@ -89,8 +87,6 @@ class openCvPipeline:
         errors = 0
         frame_counter = 0
         pnts = []
-        fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-        writer = None
         self.actualFPS = self.capture.get(cv2.CAP_PROP_FPS)
 
         print(f"source FPS: {self.actualFPS}")
@@ -106,15 +102,6 @@ class openCvPipeline:
                 self.frame = cv2.resize(self.frame,
                                         (int(self.frame.shape[1]//2),
                                          int(self.frame.shape[0]//2)))
-
-                if writer == None and record:
-                    h, w = (self.frame.shape[0], self.frame.shape[1])
-                    if bothSide:
-                        writer = cv2.VideoWriter(
-                            "output.avi", fourcc, 1000/self.actualFPS, (w*2, h), True)
-                    else:
-                        writer = cv2.VideoWriter(
-                            "output.avi", fourcc, 1000/self.actualFPS, (w, h), True)
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -163,17 +150,6 @@ class openCvPipeline:
                 cv2.imshow('mask', self.mask)
                 cv2.imshow(self.wnd, self.frame)
 
-                if record:
-                    if bothSide:
-                        output = np.zeros((h, w*2, 3), dtype="uint8")
-                        output[0:h, 0:w] = self.mask
-                        output[0:h, w:w*2] = self.frame
-                    else:
-                        output = np.zeros((h, w, 3), dtype="uint8")
-                        output[0:h, 0:w] = self.frame
-
-                    writer.write(output)
-
                 # * defining frames per second
                 if sliderEnabled:
                     key = cv2.waitKey(1)
@@ -187,8 +163,6 @@ class openCvPipeline:
                 # * quit the program s on the keypress of "q"
                 elif key == ord('q'):
                     self.capture.release()
-                    if record:
-                        writer.release()
                     break
 
                 elif key == ord('c'):
@@ -205,8 +179,6 @@ class openCvPipeline:
                 errors += 1
                 if errors > 100:
                     self.capture.release()
-                    if record:
-                        writer.release()
                     break
 
     def nothing(self, *a, **k):
