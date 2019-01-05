@@ -5,8 +5,12 @@ import hsv_val
 import numpy as np
 
 sliderEnabled = 0
+useSavedValues = 1
+
 loop = 0
-record  = 0
+bothSide = 0
+record = 0
+
 
 class openCvPipeline:
     def __init__(self, video):
@@ -20,6 +24,16 @@ class openCvPipeline:
         self.valueLowStart = 0
         self.valueHighStart = 255
         self.blurLow = 0
+
+        if useSavedValues:
+            self.hueLowStart = hsv_val.hueLow
+            self.hueHighStart = hsv_val.hueHigh
+            self.saturationLowStart = hsv_val.saturationLow
+            self.saturationHighStart = hsv_val.saturationHigh
+            self.valueLowStart = hsv_val.valueLow
+            self.valueHighStart = hsv_val.valueHigh
+            self.blurLow = hsv_val.blur
+
         # * Max values
         self.hsvMaxValue = 255
         self.blurMax = 100
@@ -42,7 +56,7 @@ class openCvPipeline:
         self.kernelDivision = 'kernel_division'
 
         self.clicks = []
-        self.maxLineCount = 50
+        self.maxLineCount = 10
         # * windows for sliders
         # ? namedWindow(winname[, flags]) -> None
         cv2.namedWindow(self.wnd, cv2.WINDOW_AUTOSIZE)
@@ -88,15 +102,19 @@ class openCvPipeline:
                 # self.frame = cv2.rotate(
                     # self.frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
                 # * resizing the frame to better fit the screen
-                # self.frame = cv2.flip(self.frame, 1)
+                self.frame = cv2.flip(self.frame, 1)
                 self.frame = cv2.resize(self.frame,
                                         (int(self.frame.shape[1]//2),
                                          int(self.frame.shape[0]//2)))
 
                 if writer == None and record:
                     h, w = (self.frame.shape[0], self.frame.shape[1])
-                    writer = cv2.VideoWriter(
-                        "output.avi", fourcc, 1000/self.actualFPS, (w*2, h), True)
+                    if bothSide:
+                        writer = cv2.VideoWriter(
+                            "output.avi", fourcc, 1000/self.actualFPS, (w*2, h), True)
+                    else:
+                        writer = cv2.VideoWriter(
+                            "output.avi", fourcc, 1000/self.actualFPS, (w, h), True)
 
                 # * Returns hueLow, hueHigh, saturationLow, saturationHigh, valueLow, valueHigh, blur
                 self.sliderValues = self.getSliderValues()
@@ -111,7 +129,6 @@ class openCvPipeline:
                 # * draws circle on the contour
                 self.center = self.findPart(self.contours)
 
-
                 # TRAIL
                 pnts.append(self.center)
                 if len(pnts) > self.maxLineCount:
@@ -119,25 +136,27 @@ class openCvPipeline:
                 for i in range(1, len(pnts)):
                     if pnts[i - 1] is None or pnts[i] is None:
                         continue
-                    thickness = int(i//7) if int(i//7) != 0 else 1
-                    cv2.line(self.frame, pnts[i - 1],
-                             pnts[i], (0, 0, 255), thickness)
+                    else:
+                        if pnts[i] != (0, 0) and pnts[i-1] != (0, 0):
+                            thickness = int(i) if int(i) != 0 else 1
+                            cv2.line(self.frame, pnts[i - 1],
+                                     pnts[i], (0, 0, 255), thickness)
 
                 # VELOCITY
                 self.velocityPix = self.findVelocity(self.center)
-                cv2.putText(self.frame,  "."*round((self.velocityPix/self.actualFPS)*60),
-                        (0, 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 255, 255), 10, cv2.LINE_AA)
+                cv2.putText(self.frame,  "."*round((self.velocityPix/self.actualFPS)*10),
+                            (0, 10), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 255, 255), 10, cv2.LINE_AA)
                 # print(f"center:", " " * ((10)-len(str(self.center))),
                 #       self.center, " velocity: ", "*"*round((self.velocity/self.actualFPS)*80))
 
-                cv2.setMouseCallback(self.wnd, self.mouse_click)
-                if len(self.clicks) == 2:
-                    lineHeight = abs(self.clicks[0][1]-self.clicks[1][1])
-                    pixToInch = lineHeight/96
-                    self.velocity = (self.velocityPix*pixToInch)/self.actualFPS
-                    print(f"velocity: {round(self.velocity, 5)} per inch")
-                    cv2.line(
-                        self.frame, self.clicks[0], (self.clicks[0][0], self.clicks[0][1]+lineHeight), (255,0,0), 1)
+                # cv2.setMouseCallback(self.wnd, self.mouse_click)
+                # if len(self.clicks) == 2:
+                #     lineHeight = abs(self.clicks[0][1]-self.clicks[1][1])
+                #     pixToInch = lineHeight/96
+                #     self.velocity = (self.velocityPix*pixToInch)/self.actualFPS
+                #     # print(f"velocity: {round(self.velocity, 5)} per inch")
+                #     cv2.line(
+                #         self.frame, self.clicks[0], (self.clicks[0][0], self.clicks[0][1]+lineHeight), (255,0,0), 1)
 
                 # * showing contour and mask
                 # ? imshow(winname, mat) -> None
@@ -145,9 +164,13 @@ class openCvPipeline:
                 cv2.imshow(self.wnd, self.frame)
 
                 if record:
-                    output = np.zeros((h, w*2, 3), dtype="uint8")
-                    output[0:h, 0:w] = self.mask
-                    output[0:h, w:w*2] = self.frame
+                    if bothSide:
+                        output = np.zeros((h, w*2, 3), dtype="uint8")
+                        output[0:h, 0:w] = self.mask
+                        output[0:h, w:w*2] = self.frame
+                    else:
+                        output = np.zeros((h, w, 3), dtype="uint8")
+                        output[0:h, 0:w] = self.frame
 
                     writer.write(output)
 
@@ -286,10 +309,10 @@ class openCvPipeline:
 
                     # * Centroid center circle
                     cv2.circle(self.frame, self.center,
-                            4, (0, 0, 255), -1)
+                               4, (0, 0, 255), -1)
                     # * Centroid surrounding circle
                     cv2.circle(self.frame, self.center,
-                            self.Radius, (255, 0, 0), 1)
+                               self.Radius, (255, 0, 0), 1)
 
         return self.center
 
@@ -308,7 +331,7 @@ class openCvPipeline:
     def mouse_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             if len(self.clicks) <= 2:
-                self.clicks.append((x,y))
+                self.clicks.append((x, y))
 
     def getContours(self, mask):
         '''
@@ -369,7 +392,6 @@ class openCvPipeline:
         # * computes bitwise conjunction of the two arrays (dst = src1 & src2)
         mask = cv2.bitwise_and(frame, frame, mask=mask)
         return mask
-
 
 
 # * captures the videofeed from camera
